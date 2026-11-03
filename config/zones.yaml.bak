@@ -1,0 +1,7 @@
+# Danger zones. Points are normalized image coordinates: x then y, each from
+# 0 (left/top) to 1 (right/bottom). Edit the numbers in place.
+# risk_level: the higher number wins when a person stands in two zones.
+# required_ppe is checked only inside that zone.
+# Outside every zone, compliance.default_required_ppe applies (helmet and vest).
+# Gloves are detected by the model but are not required in these examples.
+zones: []

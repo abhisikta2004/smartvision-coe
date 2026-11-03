@@ -1,0 +1,55 @@
+# Maps each source dataset's raw class names onto the six canonical classes.
+# A raw class that is not listed is dropped. Matching is case-sensitive, so
+# negative labels such as "no-helmet" and "NO-Hardhat" are not kept.
+#
+# Chosen from Roboflow Universe (YOLOv8 export, no extra augmentation):
+#   construction-site-safety v30 — person, helmet, vest, gloves (CC BY 4.0, 717 images)
+#   ppe-detection v1 — helmet, vest, gloves, boots, goggles (CC BY 4.0, 5140 images)
+# Together they cover person, helmet, vest, gloves, boots, and goggles.
+# CHV and SHEL5K are not included: both need a manual login (Google Drive,
+# Kaggle, or Mendeley). Hard Hat Workers was skipped because its raw export
+# adds about 20k helmet boxes and only 615 person boxes.
+
+canonical_classes:
+  - person
+  - helmet
+  - vest
+  - gloves
+  - boots
+  - goggles
+
+split:
+  train: 0.8
+  val: 0.1
+  test: 0.1
+  seed: 42
+
+min_instances: 300
+
+datasets:
+  - id: construction-site-safety
+    workspace: roboflow-universe-projects
+    project: construction-site-safety
+    version: 30
+    license: CC BY 4.0
+    images: 717
+    url: https://universe.roboflow.com/roboflow-universe-projects/construction-site-safety
+    classes:
+      Person: person
+      Hardhat: helmet
+      Safety Vest: vest
+      Gloves: gloves
+
+  - id: ppe-detection
+    workspace: testcasque
+    project: ppe-detection-qlq3d
+    version: 1
+    license: CC BY 4.0
+    images: 5140
+    url: https://universe.roboflow.com/testcasque/ppe-detection-qlq3d
+    classes:
+      helmet: helmet
+      vest: vest
+      gloves: gloves
+      boots: boots
+      goggles: goggles

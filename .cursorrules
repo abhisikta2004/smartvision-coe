@@ -1,0 +1,9 @@
+Project: SmartVision, context-aware PPE compliance and danger-zone monitoring.
+Stack: Python 3.10+, ultralytics (YOLOv8), OpenCV, NumPy, Streamlit, PyYAML, SQLite.
+Rules:
+- Modular code under src/smartvision/ with type hints and docstrings.
+- All thresholds, class names, zones and PPE requirements live in config/, never hardcoded.
+- Every module must be testable without a camera (accept numpy frames).
+- Add a pytest test for each module. Keep functions small and pure where possible.
+- Don't add dependencies without telling me. Update requirements.txt when you do.
+- Use python3 and the .venv in this folder. Target macOS; auto-select device (mps, then cuda, then cpu).

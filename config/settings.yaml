@@ -1,0 +1,137 @@
+# SmartVision runtime settings.
+# Class names, thresholds, timer length, and PPE rules live here — not in Python.
+
+model:
+  # Fine-tuned PPE checkpoint. Missing file is an error; there is no fallback.
+  weights: models/best.pt
+  # Pretrained COCO checkpoint. Ultralytics downloads it on first use.
+  person_weights: yolov8s.pt
+  # coco: people come from COCO class person_coco_class and the PPE model's
+  # person class is ignored. ppe_model: people come from models/best.pt.
+  person_source: coco
+  person_coco_class: 0
+  person_conf: 0.35
+  # Floor used when a class has no entry in class_confidence.
+  confidence: 0.25
+  iou: 0.45
+  imgsz: 640
+  # auto probes MPS, then CUDA, then CPU. This Mac cannot use MPS, so auto
+  # resolves to CUDA when present and CPU otherwise.
+  device: auto
+  class_confidence:
+    helmet: 0.4
+    vest: 0.4
+    boots: 0.4
+    goggles: 0.25
+    gloves: 0.15
+
+classes:
+  person: person
+  ppe:
+    - helmet
+    - vest
+    - gloves
+    - goggles
+    - boots
+  display_names:
+    person: Person
+    helmet: Helmet
+    vest: Safety Vest
+    gloves: Gloves
+    goggles: Goggles
+    boots: Safety Boots
+
+compliance:
+  # Used for people standing outside every danger zone.
+  # Gloves stay detectable, but they are not required: recall on that class is low.
+  default_required_ppe:
+    - helmet
+    - vest
+  # Hold time before a missing-PPE worker inside a zone becomes critical.
+  violation_hold_seconds: 2.0
+  # Vertical bands of the person box, measured from the top (0) to the bottom (1).
+  # A required item is unverified, not missing, when less of its body band
+  # than this fraction is inside the frame.
+  min_band_visible: 0.5
+  # A PPE box is kept when its center lies in the band for its class.
+  body_regions:
+    helmet:
+      y_start: 0.0
+      y_end: 0.333333
+    goggles:
+      y_start: 0.0
+      y_end: 0.333333
+    vest:
+      y_start: 0.333333
+      y_end: 0.666667
+    gloves:
+      y_start: 0.333333
+      y_end: 1.0
+    boots:
+      y_start: 0.75
+      y_end: 1.0
+
+tracking:
+  iou_threshold: 0.3
+  max_lost_frames: 30
+
+alerts:
+  evidence_dir: outputs/evidence
+  database: outputs/alerts.db
+  cooldown_seconds: 10.0
+  webcam_repeat_seconds: 3.0
+  # Live safety panel refresh. Detection keeps running between refreshes.
+  live_status_seconds: 5.0
+  box_color: [0, 0, 220]
+  zone_color: [255, 128, 0]
+
+visualize:
+  colors:
+    ok: [0, 180, 0]
+    warning: [0, 165, 255]
+    critical: [0, 0, 220]
+    ppe: [0, 0, 140]
+    zone: [255, 128, 0]
+  thickness: 2
+  # Worker boxes are scaled so they stay visible after a photo shrinks to 960px.
+  person_thickness: 6
+  # Detected PPE boxes use a darker stroke than person boxes.
+  ppe_thickness: 4
+  font_scale: 0.5
+
+pipeline:
+  # Frames skipped between inferences. 0 processes every frame.
+  frame_skip: 0
+
+dashboard:
+  kpis:
+    - workers_in_zones
+    - active_critical_violations
+    - zone_counts
+
+# Photos and recorded video use this zone. It covers the whole frame.
+# The PPE checklist on the page replaces required_ppe for that check.
+# The live camera keeps the polygon drawn on the webcam instead.
+review:
+  auto_zone:
+    name: Work area
+    risk: 1
+    points:
+      - [0.0, 0.0]
+      - [1.0, 0.0]
+      - [1.0, 1.0]
+      - [0.0, 1.0]
+
+training:
+  # Fine-tune defaults. CLI flags on scripts/train.py override these.
+  model: yolov8s.pt
+  data: data/merged/data.yaml
+  imgsz: 640
+  epochs: 50
+  batch: 16
+  patience: 10
+  device: auto
+  workers: 2
+  project: outputs/runs
+  name: train
+  weights_out: models/best.pt

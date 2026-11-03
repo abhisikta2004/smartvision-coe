@@ -1,0 +1,843 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SmartVision</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #1c1917;
+      --muted: #57534e;
+      --line: #e7e5e4;
+      --paper: #fafaf9;
+      --safe: #ecfdf3;
+      --safe-ink: #166534;
+      --ok: #f0fdf4;
+      --warn: #fffbeb;
+      --warn-ink: #92400e;
+      --bad: #fef2f2;
+      --bad-ink: #991b1b;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font: 16px/1.45 "Segoe UI", sans-serif;
+      color: var(--ink);
+      background: var(--paper);
+    }
+    main { max-width: 1000px; margin: 0 auto; padding: 24px 20px 48px; }
+    h1 { font-size: 1.6rem; margin: 0 0 4px; }
+    h2 { font-size: 1.1rem; margin: 28px 0 10px; }
+    p { color: var(--muted); margin: 0 0 16px; }
+    .row { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; }
+    label { display: flex; flex-direction: column; gap: 4px; font-size: 0.9rem; }
+    input[type="text"], select {
+      font: inherit;
+      padding: 8px 10px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: white;
+    }
+    button {
+      font: inherit;
+      padding: 8px 14px;
+      border-radius: 8px;
+      border: 1px solid #1c1917;
+      background: #1c1917;
+      color: white;
+      cursor: pointer;
+    }
+    button.secondary { background: white; color: var(--ink); }
+    #photo-check,
+    #video-start,
+    #video-stop,
+    #alert-refresh,
+    #use-camera,
+    #stop-camera,
+    #undo,
+    #clear,
+    #save {
+      font-size: 0.875rem;
+      line-height: 1.2;
+      padding: 3px 11px;
+      border-radius: 6px;
+    }
+    button:disabled { opacity: 0.45; cursor: default; }
+    #stage {
+      position: relative;
+      margin-top: 16px;
+      background: #111;
+      border-radius: 12px;
+      overflow: hidden;
+      min-height: 240px;
+    }
+    #video, #draw { width: 100%; height: auto; display: block; }
+    #draw {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      cursor: crosshair;
+    }
+    #draw.off { display: none; }
+    .checks { display: flex; flex-wrap: wrap; gap: 10px 16px; margin: 12px 0; }
+    .checks label { flex-direction: row; align-items: center; gap: 6px; }
+    .alert {
+      border-radius: 10px;
+      padding: 12px 14px;
+      margin: 8px 0;
+    }
+    .alert.safe, .alert.compliant { background: var(--safe); color: var(--safe-ink); }
+    .alert.uncertain { background: var(--warn); color: var(--warn-ink); }
+    .alert.violation { background: var(--bad); color: var(--bad-ink); }
+    .alert small { display: block; margin-top: 4px; opacity: 0.8; }
+    #error, .panel-error { color: var(--bad-ink); min-height: 1.2em; }
+    nav { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0; }
+    nav button { background: white; color: var(--ink); }
+    nav button.on { background: #1c1917; color: white; }
+    table { width: 100%; border-collapse: collapse; margin: 12px 0 20px; font-size: 0.92rem; }
+    th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+    th { color: var(--muted); font-weight: 600; }
+    .status-OK { color: var(--safe-ink); font-weight: 700; }
+    .status-WARNING { color: var(--warn-ink); font-weight: 700; }
+    .status-CRITICAL { color: var(--bad-ink); font-weight: 700; }
+    .kpis { display: flex; gap: 12px; margin: 12px 0; }
+    .kpis div { background: white; border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; }
+    .kpis strong { display: block; font-size: 1.3rem; }
+    img.still, video.still { width: 100%; height: auto; display: block; background: #111; border-radius: 12px; }
+    .stage { position: relative; margin-top: 16px; }
+    .stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; cursor: crosshair; }
+    input[type="number"], input[type="file"] { font: inherit; }
+    a { color: #1d4ed8; }
+    [hidden] { display: none !important; }
+    body.at-landing { height: 100vh; overflow: hidden; }
+    #workspace { display: none !important; }
+    body.feature #workspace { display: block !important; }
+    #landing:not([hidden]) {
+      position: fixed;
+      inset: 0;
+      z-index: 20;
+      height: 100vh;
+      overflow: hidden;
+      background: var(--paper);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      gap: 36px;
+      padding: 24px;
+    }
+    #landing h1 {
+      font-size: clamp(3.2rem, 9vw, 6rem);
+      font-weight: 650;
+      letter-spacing: -0.04em;
+      margin: 0;
+    }
+    .choices { display: flex; flex-wrap: wrap; justify-content: center; gap: 16px; }
+    .choices button { min-width: 168px; padding: 14px 22px; font-size: 1.05rem; }
+    .page-head { display: flex; justify-content: flex-end; margin-bottom: 8px; }
+    #back-home {
+      background: white;
+      color: var(--ink);
+      font-size: 0.72rem;
+      padding: 4px 8px;
+    }
+  </style>
+</head>
+<body class="at-landing">
+  <div id="landing">
+    <h1>SmartVision</h1>
+    <div class="choices">
+      <button type="button" data-open="live">Live Video</button>
+      <button type="button" data-open="photo">Images</button>
+      <button type="button" data-open="video">Video</button>
+      <button type="button" data-open="alerts">Alerts</button>
+    </div>
+  </div>
+  <main id="workspace" hidden>
+    <div class="page-head">
+      <button type="button" id="back-home">Back to home</button>
+    </div>
+    <h1>SmartVision</h1>
+    <p>Checks the work area and flags anyone missing required safety gear.</p>
+    <section id="panel-live">
+    <div class="row">
+      <label>Camera
+        <select id="camera"></select>
+      </label>
+      <button id="use-camera" type="button">Use camera</button>
+      <button id="stop-camera" class="secondary" type="button">Stop camera</button>
+    </div>
+    <p id="error"></p>
+    <div id="stage">
+      <img id="video" alt="Live camera" />
+      <canvas id="draw"></canvas>
+    </div>
+    <section id="setup">
+      <h2>Draw polygon zone</h2>
+      <p>Outline the work area on the live camera, then watch for missing helmets, vests, gloves, goggles, or boots.</p>
+      <div class="row">
+        <button id="undo" class="secondary" type="button">Undo point</button>
+        <button id="clear" class="secondary" type="button">Clear</button>
+      </div>
+      <div class="row" style="margin-top: 12px;">
+        <label>Zone name
+          <input id="name" type="text" placeholder="Machine 1" />
+        </label>
+      </div>
+      <div id="ppe" class="checks"></div>
+      <button id="save" type="button">Save zone</button>
+    </section>
+    <section id="running" hidden>
+      <div class="row">
+        <button id="edit" class="secondary" type="button">Edit zone</button>
+        <button id="reset" class="secondary" type="button">Reset zone</button>
+      </div>
+    </section>
+    <h2>Live Safety Alerts</h2>
+    <div id="alerts"></div>
+    </section>
+
+    <section id="panel-video" class="panel" hidden>
+      <h2>Video</h2>
+      <p>Upload a video and watch it play while missing helmets, vests, gloves, goggles, or boots are flagged.</p>
+      <div class="row">
+        <label>Upload
+          <input id="video-file" type="file" accept="video/mp4,video/quicktime,video/webm,.avi,.mkv" />
+        </label>
+        <button id="video-start" type="button">Play</button>
+        <button id="video-stop" class="secondary" type="button">Stop</button>
+      </div>
+      <p style="margin-top: 1lh">Required PPE inside the work area.</p>
+      <div id="video-ppe" class="checks"></div>
+      <p id="video-error" class="panel-error"></p>
+      <video id="video-play" class="still" controls playsinline preload="auto" hidden></video>
+      <h2 id="video-detect-title" hidden>Detected PPE</h2>
+      <img id="video-detect" class="still" alt="Video with detected PPE" hidden />
+      <h2 id="video-alerts-title" hidden>Alerts from this video</h2>
+      <div id="video-alerts"></div>
+      <div id="video-kpis" class="kpis"></div>
+      <div id="video-workers"></div>
+    </section>
+
+    <section id="panel-photo" class="panel" hidden>
+      <h2>Images</h2>
+      <p>Upload one photo and see who is missing a helmet, vest, gloves, goggles, or boots.</p>
+      <div class="row">
+        <label>Upload
+          <input id="photo-file" type="file" accept="image/*" />
+        </label>
+        <button id="photo-check" type="button">Check image</button>
+      </div>
+      <p style="margin-top: 1lh">Required PPE inside the work area.</p>
+      <div id="photo-ppe" class="checks"></div>
+      <img id="photo-preview" class="still" alt="Uploaded photo" hidden />
+      <p id="photo-error" class="panel-error"></p>
+      <img id="photo" class="still" alt="Checked image" hidden />
+      <div id="photo-kpis" class="kpis"></div>
+      <div id="photo-workers"></div>
+    </section>
+
+    <section id="panel-alerts" class="panel" hidden>
+      <h2>Alerts history</h2>
+      <div class="row">
+        <label>Zone
+          <select id="alert-zone"><option>All</option></select>
+        </label>
+        <button id="alert-refresh" class="secondary" type="button">Refresh</button>
+        <a id="alert-csv" href="/api/alerts.csv">Export CSV</a>
+      </div>
+      <div id="alert-table"></div>
+    </section>
+  </main>
+  <script>
+    const video = document.getElementById("video");
+    const canvas = document.getElementById("draw");
+    const ctx = canvas.getContext("2d");
+    const error = document.getElementById("error");
+    let points = [];
+    let monitoring = false;
+    let config = { display_names: {}, status_seconds: 5 };
+
+    function label(name) {
+      return config.display_names[name] || name;
+    }
+
+    function ppeList(names) {
+      const items = (names || []).map(label);
+      return items.length ? items.join(", ") : "None";
+    }
+
+    function resize() {
+      const width = video.clientWidth || 640;
+      const height = video.clientHeight || 360;
+      canvas.width = width;
+      canvas.height = height;
+      draw();
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      if (!points.length) return;
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = "#00c853";
+      ctx.fillStyle = "#00c853";
+      ctx.beginPath();
+      points.forEach((point, index) => {
+        const x = point.x * canvas.width;
+        const y = point.y * canvas.height;
+        if (index === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      });
+      if (points.length >= 3) ctx.closePath();
+      ctx.stroke();
+      points.forEach((point) => {
+        ctx.beginPath();
+        ctx.arc(point.x * canvas.width, point.y * canvas.height, 5, 0, Math.PI * 2);
+        ctx.fill();
+      });
+    }
+
+    function setMonitoring(on) {
+      monitoring = on;
+      canvas.classList.toggle("off", on);
+      document.getElementById("setup").hidden = on;
+      document.getElementById("running").hidden = !on;
+    }
+
+    function showError(text) {
+      error.textContent = text || "";
+    }
+
+    async function readError(response) {
+      try {
+        const body = await response.json();
+        const detail = body.detail;
+        if (typeof detail === "string" && detail) return detail;
+        if (Array.isArray(detail)) {
+          return detail.map((item) => (item && item.msg) || String(item)).join(" ");
+        }
+        return response.statusText;
+      } catch (_err) {
+        return response.statusText;
+      }
+    }
+
+    video.addEventListener("load", resize);
+    window.addEventListener("resize", resize);
+    canvas.addEventListener("click", (event) => {
+      if (monitoring) return;
+      const rect = canvas.getBoundingClientRect();
+      if (!rect.width || !rect.height) return;
+      points.push({
+        x: Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width)),
+        y: Math.min(1, Math.max(0, (event.clientY - rect.top) / rect.height))
+      });
+      draw();
+    });
+    document.getElementById("undo").addEventListener("click", () => {
+      points.pop();
+      draw();
+    });
+    document.getElementById("clear").addEventListener("click", () => {
+      points = [];
+      draw();
+    });
+
+    async function useCamera() {
+      showError("");
+      const index = Number(document.getElementById("camera").value);
+      const response = await fetch("/api/camera", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ index })
+      });
+      if (!response.ok) {
+        showError(await readError(response));
+        return;
+      }
+      video.src = "/api/stream?t=" + Date.now();
+    }
+
+    document.getElementById("use-camera").addEventListener("click", useCamera);
+    document.getElementById("stop-camera").addEventListener("click", async () => {
+      await fetch("/api/camera/stop", { method: "POST" });
+      video.removeAttribute("src");
+      points = [];
+      setMonitoring(false);
+      draw();
+    });
+    document.getElementById("save").addEventListener("click", async () => {
+      showError("");
+      const response = await fetch("/api/zone", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: document.getElementById("name").value,
+          points: points.map((point) => [point.x, point.y]),
+          ppe: [...document.querySelectorAll("#ppe input:checked")].map((box) => box.value)
+        })
+      });
+      if (!response.ok) {
+        showError(await readError(response));
+        return;
+      }
+      points = [];
+      draw();
+      setMonitoring(true);
+    });
+    document.getElementById("edit").addEventListener("click", async () => {
+      await fetch("/api/zone/edit", { method: "POST" });
+      points = [];
+      setMonitoring(false);
+      draw();
+    });
+    document.getElementById("reset").addEventListener("click", async () => {
+      await fetch("/api/zone/reset", { method: "POST" });
+      points = [];
+      setMonitoring(false);
+      draw();
+    });
+
+    function renderAlerts(lines) {
+      const host = document.getElementById("alerts");
+      host.replaceChildren();
+      if (!lines.length) {
+        const note = document.createElement("p");
+        note.textContent = monitoring
+          ? "The first safety check appears with the first processed frame."
+          : "Save a zone to start the safety checks.";
+        host.appendChild(note);
+        return;
+      }
+      lines.forEach((line) => {
+        const card = document.createElement("div");
+        card.className = "alert " + line.kind;
+        const text = document.createElement("div");
+        text.textContent = line.message;
+        const when = document.createElement("small");
+        when.textContent = "Latest evaluation: " + new Date(line.updated_at * 1000).toLocaleTimeString();
+        card.append(text, when);
+        host.appendChild(card);
+      });
+    }
+
+    async function poll() {
+      try {
+        const response = await fetch("/api/status");
+        if (!response.ok) return;
+        const body = await response.json();
+        if (body.error) showError(body.error);
+        if (body.monitoring !== monitoring) setMonitoring(body.monitoring);
+        renderAlerts(body.lines || []);
+      } catch (_err) {
+        showError("The live page lost its connection.");
+      }
+    }
+
+    function panelError(id, text) {
+      document.getElementById(id).textContent = text || "";
+    }
+
+    function renderKpis(hostId, kpis) {
+      const host = document.getElementById(hostId);
+      host.replaceChildren();
+      const counts = kpis || {};
+      [["Workers in zones", counts.workers_in_zones || 0], ["Active critical violations", counts.active_critical_violations || 0]].forEach(([title, value]) => {
+        const card = document.createElement("div");
+        const strong = document.createElement("strong");
+        strong.textContent = String(value);
+        card.append(strong, document.createTextNode(title));
+        host.appendChild(card);
+      });
+    }
+
+    function renderWorkers(hostId, workers) {
+      const host = document.getElementById(hostId);
+      host.replaceChildren();
+      if (!workers || !workers.length) return;
+      const table = document.createElement("table");
+      const head = document.createElement("tr");
+      ["Worker", "Zone", "Required PPE", "Detected PPE", "Missing PPE", "Uncertain PPE", "Status"].forEach((title) => {
+        const cell = document.createElement("th");
+        cell.textContent = title;
+        head.appendChild(cell);
+      });
+      table.appendChild(head);
+      workers.forEach((worker) => {
+        const row = document.createElement("tr");
+        [
+          String(worker.track_id),
+          worker.zone,
+          ppeList(worker.required_ppe),
+          ppeList(worker.detected_ppe || worker.worn_ppe),
+          ppeList(worker.missing_ppe),
+          ppeList(worker.uncertain_ppe)
+        ].forEach((value) => {
+          const cell = document.createElement("td");
+          cell.textContent = value;
+          row.appendChild(cell);
+        });
+        const status = document.createElement("td");
+        status.textContent = worker.status;
+        status.className = "status-" + worker.status;
+        row.appendChild(status);
+        table.appendChild(row);
+      });
+      host.appendChild(table);
+    }
+
+    let acceptVideoAlerts = false;
+
+    function clearVideoStatus() {
+      document.getElementById("video-kpis").replaceChildren();
+      document.getElementById("video-workers").replaceChildren();
+    }
+
+    function showVideoDetection(on) {
+      const detected = document.getElementById("video-detect");
+      const visible = Boolean(on && detected.getAttribute("src"));
+      document.getElementById("video-detect-title").hidden = !visible;
+      detected.hidden = !visible;
+    }
+
+    function showVideoAlerts(alerts) {
+      const ready = Boolean(videoFile && acceptVideoAlerts && alerts && alerts.length);
+      document.getElementById("video-alerts-title").hidden = !ready;
+      if (ready) renderStoredAlerts("video-alerts", alerts);
+      else document.getElementById("video-alerts").replaceChildren();
+    }
+
+    function renderStoredAlerts(hostId, alerts) {
+      const host = document.getElementById(hostId);
+      host.replaceChildren();
+      if (!alerts || !alerts.length) {
+        const note = document.createElement("p");
+        note.textContent = "No alerts yet.";
+        host.appendChild(note);
+        return;
+      }
+      alerts.forEach((alert) => {
+        const card = document.createElement("div");
+        card.className = "alert violation";
+        const text = document.createElement("div");
+        const missing = ppeList(alert.missing_ppe);
+        text.textContent = "Worker " + alert.track_id + " · " + (alert.zone || "zone") + " · missing " + missing;
+        card.appendChild(text);
+        if (alert.evidence) {
+          const image = document.createElement("img");
+          image.src = "/api/evidence/" + encodeURIComponent(alert.evidence);
+          image.alt = "Evidence";
+          image.style.maxWidth = "320px";
+          image.style.marginTop = "8px";
+          card.appendChild(image);
+        }
+        host.appendChild(card);
+      });
+    }
+
+    function checkedPpe(id) {
+      return [...document.querySelectorAll("#" + id + " input:checked")].map((box) => box.value);
+    }
+
+    async function uploadFile(input) {
+      const file = input.files && input.files[0];
+      if (!file) return null;
+      const body = new FormData();
+      body.append("file", file);
+      const response = await fetch("/api/upload", { method: "POST", body });
+      if (!response.ok) throw new Error(await readError(response));
+      return response.json();
+    }
+
+    let photoFile = null;
+    let videoFile = null;
+    let photoGeneration = 0;
+
+    function clearPhotoResults() {
+      const picture = document.getElementById("photo");
+      picture.hidden = true;
+      picture.removeAttribute("src");
+      document.getElementById("photo-kpis").replaceChildren();
+      document.getElementById("photo-workers").replaceChildren();
+    }
+
+    function previewUpload(imgId, name) {
+      const preview = document.getElementById(imgId);
+      preview.hidden = false;
+      preview.src = "/api/reference.jpg?kind=upload&name=" + encodeURIComponent(name) + "&t=" + Date.now();
+    }
+
+    document.getElementById("photo-file").addEventListener("change", async () => {
+      panelError("photo-error", "");
+      const generation = ++photoGeneration;
+      clearPhotoResults();
+      try {
+        const stored = await uploadFile(document.getElementById("photo-file"));
+        if (generation !== photoGeneration) return;
+        if (!stored) return;
+        photoFile = stored.name;
+        previewUpload("photo-preview", stored.name);
+      } catch (exc) {
+        if (generation !== photoGeneration) return;
+        photoFile = null;
+        clearPhotoResults();
+        panelError("photo-error", exc.message);
+      }
+    });
+
+    document.getElementById("video-file").addEventListener("change", async () => {
+      panelError("video-error", "");
+      try {
+        const stored = await uploadFile(document.getElementById("video-file"));
+        if (!stored) return;
+        videoFile = stored.name;
+        const player = document.getElementById("video-play");
+        player.hidden = false;
+        player.src = "/api/media?kind=upload&name=" + encodeURIComponent(stored.name);
+        player.load();
+        acceptVideoAlerts = false;
+        const detected = document.getElementById("video-detect");
+        detected.removeAttribute("src");
+        showVideoDetection(false);
+        showVideoAlerts([]);
+        clearVideoStatus();
+      } catch (exc) {
+        videoFile = null;
+        acceptVideoAlerts = false;
+        showVideoAlerts([]);
+        clearVideoStatus();
+        panelError("video-error", exc.message);
+      }
+    });
+
+    document.getElementById("video-start").addEventListener("click", async () => {
+      panelError("video-error", "");
+      try {
+        if (!videoFile) {
+          panelError("video-error", "Upload a video.");
+          return;
+        }
+        const player = document.getElementById("video-play");
+        player.currentTime = 0;
+        const playing = player.play();
+        const payload = { kind: "upload", name: videoFile };
+        payload.ppe = checkedPpe("video-ppe");
+        const response = await fetch("/api/video", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        if (!response.ok) {
+          player.pause();
+          acceptVideoAlerts = false;
+          showVideoAlerts([]);
+          panelError("video-error", await readError(response));
+          return;
+        }
+        acceptVideoAlerts = true;
+        const detected = document.getElementById("video-detect");
+        detected.src = "/api/video/stream?t=" + Date.now();
+        showVideoDetection(true);
+        showVideoAlerts([]);
+        if (playing) playing.catch(() => {});
+      } catch (exc) {
+        acceptVideoAlerts = false;
+        showVideoAlerts([]);
+        panelError("video-error", exc.message);
+      }
+    });
+    document.getElementById("video-stop").addEventListener("click", async () => {
+      const player = document.getElementById("video-play");
+      const detected = document.getElementById("video-detect");
+      player.pause();
+      detected.removeAttribute("src");
+      showVideoDetection(false);
+      acceptVideoAlerts = false;
+      await fetch("/api/video/stop", { method: "POST" });
+    });
+
+    document.getElementById("photo-check").addEventListener("click", async () => {
+      panelError("photo-error", "");
+      const button = document.getElementById("photo-check");
+      const generation = photoGeneration;
+      button.disabled = true;
+      try {
+        if (!photoFile) {
+          panelError("photo-error", "Upload a photo.");
+          return;
+        }
+        const payload = { kind: "upload", name: photoFile, ppe: checkedPpe("photo-ppe") };
+        const response = await fetch("/api/photo", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        if (generation !== photoGeneration) return;
+        if (!response.ok) {
+          panelError("photo-error", await readError(response));
+          return;
+        }
+        const body = await response.json();
+        if (generation !== photoGeneration) return;
+        const picture = document.getElementById("photo");
+        picture.hidden = false;
+        picture.src = "/api/photo.jpg?t=" + Date.now();
+        renderKpis("photo-kpis", body.kpis);
+        renderWorkers("photo-workers", body.workers);
+      } catch (exc) {
+        panelError("photo-error", exc.message);
+      } finally {
+        button.disabled = false;
+      }
+    });
+
+    async function loadAlerts() {
+      const zone = document.getElementById("alert-zone").value;
+      const query = zone && zone !== "All" ? "?zone=" + encodeURIComponent(zone) : "";
+      const response = await fetch("/api/alerts" + query);
+      if (!response.ok) return;
+      const body = await response.json();
+      const select = document.getElementById("alert-zone");
+      const current = select.value || "All";
+      const zones = [...new Set((body.alerts || []).map((alert) => alert.zone).filter(Boolean))].sort();
+      select.replaceChildren();
+      ["All", ...zones].forEach((name) => {
+        const option = document.createElement("option");
+        option.value = name;
+        option.textContent = name;
+        select.appendChild(option);
+      });
+      if ([...select.options].some((option) => option.value === current)) select.value = current;
+      document.getElementById("alert-csv").href = "/api/alerts.csv" + query;
+      const host = document.getElementById("alert-table");
+      host.replaceChildren();
+      const table = document.createElement("table");
+      const head = document.createElement("tr");
+      ["Time", "Worker", "Zone", "Missing PPE", "Evidence"].forEach((title) => {
+        const cell = document.createElement("th");
+        cell.textContent = title;
+        head.appendChild(cell);
+      });
+      table.appendChild(head);
+      (body.alerts || []).forEach((alert) => {
+        const row = document.createElement("tr");
+        const when = new Date(alert.timestamp * 1000);
+        const stamp = alert.timestamp > 1e9 && !Number.isNaN(when.getTime())
+          ? when.toLocaleString()
+          : "t=" + Number(alert.timestamp).toFixed(2);
+        [stamp, String(alert.track_id), alert.zone || "", ppeList(alert.missing_ppe)].forEach((value) => {
+          const cell = document.createElement("td");
+          cell.textContent = value;
+          row.appendChild(cell);
+        });
+        const evidence = document.createElement("td");
+        if (alert.evidence) {
+          const image = document.createElement("img");
+          image.src = "/api/evidence/" + encodeURIComponent(alert.evidence);
+          image.alt = "Evidence";
+          image.style.maxWidth = "160px";
+          evidence.appendChild(image);
+        }
+        row.appendChild(evidence);
+        table.appendChild(row);
+      });
+      host.appendChild(table);
+    }
+    document.getElementById("alert-refresh").addEventListener("click", loadAlerts);
+    document.getElementById("alert-zone").addEventListener("change", loadAlerts);
+
+    async function pollVideo() {
+      if (document.getElementById("panel-video").hidden) return;
+      const response = await fetch("/api/video/status");
+      if (!response.ok) return;
+      const body = await response.json();
+      if (body.error) panelError("video-error", body.error);
+      if (!body.source) return;
+      if (!videoFile || !acceptVideoAlerts) {
+        if (!videoFile) clearVideoStatus();
+        return;
+      }
+      renderKpis("video-kpis", body.kpis);
+      renderWorkers("video-workers", body.workers);
+      showVideoDetection(true);
+      showVideoAlerts(body.alerts);
+    }
+
+    function openTab(tab) {
+      document.querySelectorAll("#workspace > section").forEach((panel) => {
+        panel.hidden = panel.id !== "panel-" + tab;
+      });
+      if (tab === "live") resize();
+      if (tab === "alerts") loadAlerts();
+    }
+
+    function showWorkspace(tab) {
+      document.body.classList.remove("at-landing");
+      document.body.classList.add("feature");
+      document.getElementById("landing").hidden = true;
+      document.getElementById("workspace").hidden = false;
+      openTab(tab);
+      if (tab === "live") useCamera();
+    }
+
+    document.querySelectorAll("#landing button").forEach((button) => {
+      button.addEventListener("click", () => showWorkspace(button.dataset.open));
+    });
+    document.getElementById("back-home").addEventListener("click", async () => {
+      document.getElementById("workspace").hidden = true;
+      document.getElementById("landing").hidden = false;
+      document.body.classList.remove("feature");
+      document.body.classList.add("at-landing");
+      points = [];
+      setMonitoring(false);
+      video.removeAttribute("src");
+      const player = document.getElementById("video-play");
+      player.pause();
+      player.removeAttribute("src");
+      player.load();
+      player.hidden = true;
+      const detected = document.getElementById("video-detect");
+      detected.removeAttribute("src");
+      showVideoDetection(false);
+      acceptVideoAlerts = false;
+      document.getElementById("video-detect-title").hidden = true;
+      document.getElementById("video-alerts-title").hidden = true;
+      document.getElementById("video-alerts").replaceChildren();
+      clearVideoStatus();
+      await fetch("/api/camera/stop", { method: "POST" });
+      await fetch("/api/video/stop", { method: "POST" });
+    });
+
+    async function boot() {
+      const response = await fetch("/api/config");
+      config = await response.json();
+      const camera = document.getElementById("camera");
+      config.cameras.forEach((item) => {
+        const option = document.createElement("option");
+        option.value = String(item.index);
+        option.textContent = item.label;
+        camera.appendChild(option);
+      });
+      ["ppe", "photo-ppe", "video-ppe"].forEach((id) => {
+        const host = document.getElementById(id);
+        config.ppe.forEach((name) => {
+          const box = document.createElement("label");
+          const input = document.createElement("input");
+          input.type = "checkbox";
+          input.value = name;
+          input.checked = config.default_required_ppe.includes(name);
+          box.append(input, document.createTextNode(label(name)));
+          host.appendChild(box);
+        });
+      });
+      setInterval(poll, 1000);
+      setInterval(pollVideo, 1000);
+      poll();
+    }
+    boot();
+  </script>
+</body>
+</html>
